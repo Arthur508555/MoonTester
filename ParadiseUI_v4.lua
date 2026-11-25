@@ -1846,6 +1846,52 @@ function Diagnostics.CheckUsage()
     return Diagnostics.CheckWindow(active)
 end
 
+function Diagnostics.CheckEnvironment()
+    local results = {}
+    local function add(name, passed, detail, optional)
+        table.insert(results, {
+            Name = name,
+            Passed = passed == true,
+            Optional = optional == true,
+            Details = detail or "",
+        })
+        if passed then
+            Diagnostics.Log("INFO", "ENV_OK", name .. ": " .. (detail or "OK"))
+        elseif optional then
+            Diagnostics.Log("WARN", "ENV_OPTIONAL_MISSING", name .. ": " .. (detail or "não disponível"))
+        else
+            Diagnostics.Log("ERROR", "ENV_REQUIRED_MISSING", name .. ": " .. (detail or "não disponível"))
+        end
+    end
+
+    add("Instance.new", type(Instance) == "table" and type(Instance.new) == "function",
+        "Criação de instâncias Roblox.")
+    add("game:GetService", game ~= nil and type(game.GetService) == "function",
+        "Acesso aos serviços.")
+    add("TweenService", pcall(function() return game:GetService("TweenService") end),
+        "Animações da interface.")
+    add("UserInputService", pcall(function() return game:GetService("UserInputService") end),
+        "Entrada de mouse/teclado.")
+    add("loadstring", type(loadstring) == "function",
+        "Necessário somente para carregar código remoto; não é exigido com require(ModuleScript).", true)
+    add("gethui", type(gethui) == "function",
+        "Opcional; a biblioteca tenta PlayerGui quando está ausente.", true)
+
+    local player = Players.LocalPlayer
+    add("LocalPlayer", player ~= nil,
+        player and ("Jogador: " .. player.Name) or "LocalPlayer não foi encontrado.")
+    local hasPlayerGui = false
+    if player then
+        hasPlayerGui = pcall(function()
+            return player:FindFirstChildOfClass("PlayerGui") or player:WaitForChild("PlayerGui", 2)
+        end)
+    end
+    local hasGuiFallback = type(gethui) == "function" or hasPlayerGui
+    add("GUI parent fallback", hasGuiFallback,
+        "Precisa de gethui() ou PlayerGui.")
+    return results
+end
+
 function Diagnostics.SelfTest(window, tab)
     local results = {}
     local function add(name, ok, details)
@@ -1854,6 +1900,15 @@ function Diagnostics.SelfTest(window, tab)
 
     local libOk = Diagnostics.CheckLibrary(Paradise)
     add("Library/API", libOk)
+
+    local environment = Diagnostics.CheckEnvironment()
+    local requiredEnvironmentOk = true
+    for _, item in ipairs(environment) do
+        if not item.Passed and not item.Optional then
+            requiredEnvironmentOk = false
+        end
+    end
+    add("Runtime environment", requiredEnvironmentOk, "Verifique o relatório para detalhes do ambiente.")
 
     local probe = setmetatable({ Window = {}, Order = 0 }, Tab)
     local methodsOk = type(probe.Label) == "function"
@@ -1888,6 +1943,7 @@ function Diagnostics.Report()
         "Contexto: " .. Diagnostics.DetectExecutionContext(),
         "Erros de componentes: " .. tostring(Diagnostics.ComponentErrors),
         "Erros de callbacks: " .. tostring(Diagnostics.CallbackErrors),
+        "Componentes criados: " .. tostring(Paradise._activeWindow and Paradise._activeWindow.ComponentCount or 0),
         "Eventos armazenados: " .. tostring(#Diagnostics.Events),
     }
     for _, event in ipairs(Diagnostics.Events) do
@@ -1956,6 +2012,15 @@ local function GuardMethod(classTable, methodName, category, countComponent)
         end
         if countComponent and type(self) == "table" then
             self.ComponentCount = (self.ComponentCount or 0) + 1
+            if self.Window then
+                self.Window.ComponentCount = (self.Window.ComponentCount or 0) + 1
+            end
+            Diagnostics.Log("INFO", "COMPONENT_CREATED",
+                methodName .. " criado com sucesso. Total nesta aba: " .. tostring(self.ComponentCount))
+        elseif (category == "COMPONENT" or category == "RAYFIELD_ADAPTER") and result == nil then
+            Diagnostics.ComponentErrors += 1
+            Diagnostics.Log("ERROR", "COMPONENT_RETURNED_NIL",
+                methodName .. " não retornou um handle. Verifique o componente anterior no relatório.")
         end
         return result
     end
