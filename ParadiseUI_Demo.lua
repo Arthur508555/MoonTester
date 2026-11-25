@@ -3,7 +3,7 @@
     A biblioteca fica separada deste script.
 ]]
 
-local LIBRARY_URL = "https://raw.githubusercontent.com/Arthur508555/MoonTester/main/ParadiseUI_v5.lua"
+local LIBRARY_URL = "https://raw.githubusercontent.com/Arthur508555/MoonTester/main/ParadiseUI_v6.lua"
 
 local okHttp, source = pcall(function()
     return game:HttpGet(LIBRARY_URL)
@@ -33,7 +33,11 @@ local Window, windowError = Paradise:CreateWindow({
     Name = "Paradise UI Test",
     LoadingTitle = "Paradise UI",
     LoadingSubtitle = "componentes + diagnóstico",
+    -- Tecla padrão definida pelo criador do script:
     ToggleUIKeybind = "RightShift",
+    -- Permite que o usuário final altere a tecla na aba Config:
+    AllowToggleKeybindChange = true,
+    ToggleKeybindTabName = "Config",
 })
 if not Window then
     error("[ParadiseUI Demo] WINDOW_CREATE_FAILED: " .. tostring(windowError) .. "\n" .. Paradise.Diagnostics.Report())
