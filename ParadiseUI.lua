@@ -1,16 +1,11 @@
 --[[
     🌴 PARADISE UI LIBRARY 🌴
-    LocalScript único - Luau / Roblox
-    Tema: céu azul, grama, bolhas, nuvens, água e margaridas.
+    ModuleScript / library única - Luau / Roblox
+    Tema: céu azul, água, nuvens e detalhes tropicais.
 
-    Componentes: Janela, Abas, Seções, Label, Botão, Toggle, Slider,
-                 Dropdown, TextBox, Keybind e Notificações.
-
-    Coloque em StarterPlayerScripts (LocalScript).
-    Troque RUN_DEMO para false se quiser usar apenas a library.
+    API nativa Paradise + adaptador de componentes compatíveis com Rayfield.
+    A demonstração fica em ParadiseUI_Demo.lua (arquivo separado).
 ]]
-
-local RUN_DEMO = true
 
 -- ═══════════════════════════════════════════════════════════
 --  Serviços
@@ -205,6 +200,7 @@ function Paradise.new(config)
 		Parent = GetGuiParent(),
 	})
 	self.Gui = gui
+	Paradise._activeWindow = self
 
 	-- Janela principal
 	local main = Create("Frame", {
@@ -368,7 +364,7 @@ function Paradise.new(config)
 	local sidebar = Create("Frame", {
 		Name = "Sidebar",
 		Position = UDim2.fromOffset(12, 58),
-		Size = UDim2.new(0, 146, 1, -58 - 44),
+		Size = UDim2.new(0, 146, 1, -58 - 36),
 		BackgroundColor3 = Theme.Panel,
 		BackgroundTransparency = 0.6,
 		BorderSizePixel = 0,
@@ -403,7 +399,7 @@ function Paradise.new(config)
 	local content = Create("Frame", {
 		Name = "Content",
 		Position = UDim2.fromOffset(168, 58),
-		Size = UDim2.new(1, -180, 1, -58 - 44),
+		Size = UDim2.new(1, -180, 1, -58 - 36),
 		BackgroundTransparency = 1,
 		ClipsDescendants = true,
 		ZIndex = 4,
@@ -411,68 +407,40 @@ function Paradise.new(config)
 	})
 	self.Content = content
 
-	-- Faixa de grama inferior
-	local grass = Create("Frame", {
-		Name = "Grass",
-		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.fromScale(0, 1),
-		Size = UDim2.new(1, 0, 0, 32),
-		BackgroundColor3 = Theme.White,
+	-- Barra inferior vazia no estilo Rayfield: área de arraste sem texto.
+	-- Ela fica insetada para não atravessar os cantos arredondados da janela.
+	local dragbar = Create("Frame", {
+		Name = "BottomDragBar",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -8),
+		Size = UDim2.new(1, -36, 0, 20),
+		BackgroundColor3 = Theme.Panel,
+		BackgroundTransparency = 0.78,
 		BorderSizePixel = 0,
 		ZIndex = 8,
 		Parent = main,
 	})
-	Gradient(grass, Theme.Grass, Theme.GrassDark, 90)
-	-- topo ondulado da grama
-	for i = 0, 11 do
-		local hill = Create("Frame", {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(i / 11, 0, 0, 2),
-			Size = UDim2.fromOffset(rng:NextInteger(70, 110), rng:NextInteger(14, 22)),
-			BackgroundColor3 = Theme.Grass,
-			BorderSizePixel = 0,
-			ZIndex = 8,
-			Parent = grass,
-		})
-		Corner(hill, UDim.new(1, 0))
-	end
-	Create("TextLabel", {
-		Text = "🌴  Paradise UI  •  " .. self.ToggleKey.Name .. " para ocultar",
-		Font = Theme.FontBold,
-		TextSize = 11,
-		TextColor3 = Theme.White,
-		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(0, 8),
-		Size = UDim2.new(1, 0, 1, -8),
-		ZIndex = 10,
-		Parent = grass,
+	Corner(dragbar, UDim.new(1, 0))
+	local grip = Create("Frame", {
+		Name = "Grip",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(38, 3),
+		BackgroundColor3 = Theme.White,
+		BackgroundTransparency = 0.48,
+		BorderSizePixel = 0,
+		ZIndex = 9,
+		Parent = dragbar,
 	})
-	-- margaridas balançando
-	local daisies = {}
-	local daisyX = { 0.03, 0.09, 0.2, 0.78, 0.91, 0.97 }
-	for _, dx in ipairs(daisyX) do
-		local d = Create("TextLabel", {
-			Text = "🌼",
-			TextSize = 16,
-			BackgroundTransparency = 1,
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(dx, 0, 0, 14),
-			Size = UDim2.fromOffset(20, 20),
-			ZIndex = 9,
-			Parent = grass,
-		})
-		table.insert(daisies, d)
-	end
+	Corner(grip, UDim.new(1, 0))
+	MakeDraggable(dragbar, main, self.Connections)
 
-	-- Animações contínuas (céu + margaridas)
+	-- Animação contínua apenas do fundo.
 	local t0 = os.clock()
 	table.insert(self.Connections, RunService.Heartbeat:Connect(function()
 		local t = os.clock() - t0
 		sky.Rotation = 90 + math.sin(t * 0.35) * 14
 		sky.Offset = Vector2.new(math.sin(t * 0.2) * 0.08, 0)
-		for i, d in ipairs(daisies) do
-			d.Rotation = math.sin(t * 1.6 + i) * 9
-		end
 	end))
 
 	-- Notificações
@@ -503,7 +471,7 @@ function Paradise.new(config)
 		end
 	end))
 
-	self.Elements = { sidebar = sidebar, content = content, grass = grass }
+	self.Elements = { sidebar = sidebar, content = content, dragbar = dragbar }
 
 	-- Animação de abertura
 	Tween(scaler, { Scale = 1 }, 0.7, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -534,7 +502,7 @@ function Paradise:SetCollapsed(state)
 	if state then
 		self.Elements.sidebar.Visible = false
 		self.Elements.content.Visible = false
-		self.Elements.grass.Visible = false
+		self.Elements.dragbar.Visible = false
 		Tween(self.Main, {
 			Size = UDim2.fromOffset(width, 52),
 			Position = UDim2.new(pos.X.Scale, pos.X.Offset, pos.Y.Scale, pos.Y.Offset - dy),
@@ -547,7 +515,7 @@ function Paradise:SetCollapsed(state)
 			if not self.Collapsed then
 				self.Elements.sidebar.Visible = true
 				self.Elements.content.Visible = true
-				self.Elements.grass.Visible = true
+				self.Elements.dragbar.Visible = true
 			end
 		end)
 	end
@@ -565,6 +533,14 @@ end
 --  Notificações
 -- ═══════════════════════════════════════════════════════════
 function Paradise:Notify(opts)
+	-- Também permite o padrão Rayfield:Notify(...) na tabela do módulo.
+	if not self.NotifHolder then
+		local active = Paradise._activeWindow
+		if active and active.NotifHolder then
+			return active:Notify(opts)
+		end
+		return
+	end
 	opts = opts or {}
 	local duration = opts.Duration or 4
 
@@ -794,7 +770,7 @@ function Tab:Section(text)
 		Parent = holder,
 	})
 	Corner(dot, UDim.new(1, 0))
-	Create("TextLabel", {
+	local sectionLabel = Create("TextLabel", {
 		Text = string.upper(text),
 		Font = Theme.FontBold,
 		TextSize = 12,
@@ -806,6 +782,10 @@ function Tab:Section(text)
 		ZIndex = 6,
 		Parent = holder,
 	})
+	return {
+		Set = function(_, value) sectionLabel.Text = string.upper(tostring(value)) end,
+		Destroy = function() holder:Destroy() end,
+	}
 end
 
 function Tab:Label(text)
@@ -821,7 +801,7 @@ end
 function Tab:Button(opts)
 	opts = opts or {}
 	local f = Element(self, 38)
-	NameLabel(f, opts.Name or "Botão")
+	local titleLabel = NameLabel(f, opts.Name or "Botão")
 	local icon = Create("TextLabel", {
 		Text = "💧",
 		TextSize = 15,
@@ -847,6 +827,10 @@ function Tab:Button(opts)
 		Tween(icon, { Rotation = 0 }, 0.5, Enum.EasingStyle.Elastic)
 		Fire(opts.Callback)
 	end)
+	return {
+		Set = function(_, value) titleLabel.Text = tostring(value) end,
+		Destroy = function() f:Destroy() end,
+	}
 end
 
 function Tab:Toggle(opts)
@@ -1016,7 +1000,13 @@ end
 function Tab:Dropdown(opts)
 	opts = opts or {}
 	local options = opts.Options or {}
+	local multiple = opts.Multiple == true
 	local current = opts.Default
+	if multiple then
+		if type(current) ~= "table" then current = current ~= nil and { current } or {} end
+	else
+		if type(current) == "table" then current = current[1] end
+	end
 	local open = false
 
 	local f = Element(self, 38)
@@ -1061,10 +1051,23 @@ function Tab:Dropdown(opts)
 	local api = {}
 	local buttons = {}
 
+	local function isSelected(opt)
+		if multiple then
+			for _, selected in ipairs(current) do
+				if selected == opt then return true end
+			end
+			return false
+		end
+		return opt == current
+	end
+	local function displayValue()
+		if multiple then return #current > 0 and table.concat(current, ", ") or "Selecionar..." end
+		return current ~= nil and tostring(current) or "Selecionar..."
+	end
 	local function expandedHeight() return 38 + #options * 30 + 8 end
 	local function refreshHighlight()
 		for opt, b in pairs(buttons) do
-			Tween(b, { BackgroundTransparency = (opt == current) and 0.45 or 1 }, 0.2)
+			Tween(b, { BackgroundTransparency = isSelected(opt) and 0.45 or 1 }, 0.2)
 		end
 	end
 	local function build()
@@ -1085,8 +1088,8 @@ function Tab:Dropdown(opts)
 				Parent = list,
 			})
 			Corner(b, UDim.new(0, 8))
-			b.MouseEnter:Connect(function() if opt ~= current then Tween(b, { BackgroundTransparency = 0.8 }, 0.12) end end)
-			b.MouseLeave:Connect(function() if opt ~= current then Tween(b, { BackgroundTransparency = 1 }, 0.12) end end)
+			b.MouseEnter:Connect(function() if not isSelected(opt) then Tween(b, { BackgroundTransparency = 0.8 }, 0.12) end end)
+			b.MouseLeave:Connect(function() if not isSelected(opt) then Tween(b, { BackgroundTransparency = 1 }, 0.12) end end)
 			b.MouseButton1Click:Connect(function() api:Set(opt) end)
 			buttons[opt] = b
 		end
@@ -1099,13 +1102,25 @@ function Tab:Dropdown(opts)
 	end
 
 	function api:Set(v, silent)
-		current = v
-		valueLabel.Text = tostring(v)
+		if multiple then
+			if type(v) == "table" then
+				current = table.clone(v)
+			else
+				local found
+				for i, selected in ipairs(current) do
+					if selected == v then table.remove(current, i); found = true; break end
+				end
+				if not found then table.insert(current, v) end
+			end
+		else
+			current = type(v) == "table" and v[1] or v
+		end
+		valueLabel.Text = displayValue()
 		refreshHighlight()
-		setOpen(false)
-		if not silent then Fire(opts.Callback, v) end
+		if not multiple then setOpen(false) end
+		if not silent then Fire(opts.Callback, multiple and table.clone(current) or current) end
 	end
-	function api:Get() return current end
+	function api:Get() return multiple and table.clone(current) or current end
 	function api:Refresh(newOptions)
 		options = newOptions or {}
 		build()
@@ -1118,6 +1133,7 @@ function Tab:Dropdown(opts)
 	})
 	head.MouseButton1Click:Connect(function() setOpen(not open) end)
 
+	valueLabel.Text = displayValue()
 	build()
 	return api
 end
@@ -1148,7 +1164,9 @@ function Tab:TextBox(opts)
 	box.Focused:Connect(function() Tween(stroke, { Transparency = 0, Color = Theme.Daisy }, 0.2) end)
 	box.FocusLost:Connect(function(enter)
 		Tween(stroke, { Transparency = 0.75, Color = Theme.White }, 0.2)
-		Fire(opts.Callback, box.Text, enter)
+		local value = box.Text
+		Fire(opts.Callback, value, enter)
+		if opts.RemoveTextAfterFocusLost then box.Text = "" end
 	end)
 
 	return {
@@ -1160,7 +1178,12 @@ end
 function Tab:Keybind(opts)
 	opts = opts or {}
 	local key = opts.Default or Enum.KeyCode.F
+	if type(key) == "string" then
+		local ok, parsed = pcall(function() return Enum.KeyCode[key] end)
+		if ok and parsed then key = parsed else key = Enum.KeyCode.F end
+	end
 	local listening = false
+	local held = false
 
 	local f = Element(self, 38)
 	NameLabel(f, opts.Name or "Keybind").Size = UDim2.new(0.6, -14, 0, 38)
@@ -1193,81 +1216,412 @@ function Tab:Keybind(opts)
 				if input.KeyCode ~= Enum.KeyCode.Escape then key = input.KeyCode end
 				btn.Text = key.Name
 				Tween(btn, { BackgroundColor3 = Theme.Daisy }, 0.2)
-				Fire(opts.Changed, key)
+				Fire(opts.Changed or opts.ChangedCallback, key)
 			end
 		elseif not gp and input.KeyCode == key then
-			Fire(opts.Callback, key)
+			if opts.HoldToInteract then
+				held = true
+				Fire(opts.Callback, true)
+			else
+				Fire(opts.Callback, key)
+			end
 		end
 	end))
+	if opts.HoldToInteract then
+		table.insert(self.Window.Connections, UserInputService.InputEnded:Connect(function(input)
+			if held and input.KeyCode == key then
+				held = false
+				Fire(opts.Callback, false)
+			end
+		end))
+	end
 
 	return {
 		Get = function() return key end,
-		Set = function(_, k) key = k; btn.Text = k.Name end,
+		Set = function(_, k)
+			if type(k) == "string" then k = Enum.KeyCode[k] end
+			if typeof(k) == "EnumItem" then key = k; btn.Text = k.Name end
+		end,
 	}
 end
 
 -- ═══════════════════════════════════════════════════════════
---  DEMO (apague ou ponha RUN_DEMO = false)
+--  Controles adicionais da Paradise
 -- ═══════════════════════════════════════════════════════════
-if RUN_DEMO then
-	local Window = Paradise.new({
-		Name = "Paradise Hub",
-		Subtitle = "sol, água e boas vibrações",
-		ToggleKey = Enum.KeyCode.RightShift,
-	})
+function Tab:Checkbox(opts)
+    opts = opts or {}
+    local state = opts.Default == true or opts.CurrentValue == true
+    local f = Element(self, 38)
+    NameLabel(f, opts.Name or "Checkbox")
 
-	local Main = Window:Tab("Principal", "🌴")
-	Main:Section("Ações")
-	Main:Label("Bem-vindo ao paraíso! Arraste a barra de cima para mover.")
-	Main:Button({
-		Name = "Mostrar notificação",
-		Callback = function()
-			Window:Notify({ Title = "Paraíso", Content = "Tudo funcionando perfeitamente!", Duration = 4 })
-		end,
-	})
-	Main:Toggle({
-		Name = "Modo ensolarado",
-		Default = true,
-		Callback = function(v) print("Ensolarado:", v) end,
-	})
-	Main:Section("Ajustes")
-	Main:Slider({
-		Name = "Velocidade",
-		Min = 0, Max = 100, Default = 40, Suffix = "%",
-		Callback = function(v) print("Velocidade:", v) end,
-	})
-	Main:Slider({
-		Name = "Brilho",
-		Min = 0, Max = 1, Increment = 0.05, Default = 0.7,
-		Callback = function(v) print("Brilho:", v) end,
-	})
+    local box = Create("Frame", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -14, 0.5, 0),
+        Size = UDim2.fromOffset(20, 20),
+        BackgroundColor3 = Theme.Panel,
+        BackgroundTransparency = 0.15,
+        BorderSizePixel = 0,
+        ZIndex = 6,
+        Parent = f,
+    })
+    Corner(box, UDim.new(0, 6))
+    Stroke(box, Theme.White, 0.55, 1)
+    local tick = Create("TextLabel", {
+        Text = "✓",
+        Font = Theme.FontBold,
+        TextSize = 15,
+        TextColor3 = Theme.White,
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        TextTransparency = state and 0 or 1,
+        ZIndex = 7,
+        Parent = box,
+    })
+    local api = {}
+    function api:Set(value, silent)
+        state = value == true
+        Tween(box, { BackgroundColor3 = state and Theme.Grass or Theme.Panel }, 0.18)
+        Tween(tick, { TextTransparency = state and 0 or 1 }, 0.15)
+        if not silent then Fire(opts.Callback, state) end
+    end
+    function api:Get() return state end
 
-	local Extra = Window:Tab("Extras", "🌊")
-	Extra:Section("Seleção")
-	Extra:Dropdown({
-		Name = "Ilha",
-		Options = { "Bora Bora", "Maldivas", "Fernando de Noronha", "Havaí" },
-		Default = "Fernando de Noronha",
-		Callback = function(v) print("Ilha:", v) end,
-	})
-	Extra:TextBox({
-		Name = "Apelido",
-		Placeholder = "seu nome...",
-		Callback = function(text) print("Apelido:", text) end,
-	})
-	Extra:Keybind({
-		Name = "Tecla de ação",
-		Default = Enum.KeyCode.E,
-		Callback = function() Window:Notify({ Title = "Tecla", Content = "Você apertou a tecla!", Duration = 2 }) end,
-	})
-
-	local Config = Window:Tab("Config", "🌼")
-	Config:Section("Interface")
-	Config:Button({ Name = "Fechar interface", Callback = function() Window:Destroy() end })
-
-	task.delay(0.8, function()
-		Window:Notify({ Title = "Bem-vindo 🌴", Content = "Paradise UI carregada com sucesso.", Duration = 5 })
-	end)
+    local click = Create("TextButton", {
+        Text = "", BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1), ZIndex = 8, Parent = f,
+    })
+    click.MouseButton1Click:Connect(function() api:Set(not state) end)
+    api:Set(state, true)
+    return api
 end
 
+function Tab:Paragraph(opts)
+    opts = opts or {}
+    local f = Element(self, opts.Height or 76)
+    local title = Create("TextLabel", {
+        Text = tostring(opts.Title or "Informação"),
+        Font = Theme.FontBold,
+        TextSize = 13,
+        TextColor3 = Theme.White,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(14, 8),
+        Size = UDim2.new(1, -28, 0, 20),
+        ZIndex = 6,
+        Parent = f,
+    })
+    local body = Create("TextLabel", {
+        Text = tostring(opts.Content or ""),
+        Font = Theme.Font,
+        TextSize = 12,
+        TextColor3 = Theme.White,
+        TextTransparency = 0.18,
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(14, 30),
+        Size = UDim2.new(1, -28, 1, -38),
+        ZIndex = 6,
+        Parent = f,
+    })
+    return {
+        Set = function(_, content) body.Text = tostring(content) end,
+        SetTitle = function(_, value) title.Text = tostring(value) end,
+        Destroy = function() f:Destroy() end,
+    }
+end
+
+function Tab:Divider(text)
+    local holder = Create("Frame", {
+        Size = UDim2.new(1, 0, 0, text and 30 or 16),
+        BackgroundTransparency = 1,
+        LayoutOrder = self:_next(),
+        ZIndex = 5,
+        Parent = self.Page,
+    })
+    local line = Create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, text and 0.72 or 0.5),
+        Size = UDim2.new(1, -14, 0, 1),
+        BackgroundColor3 = Theme.White,
+        BackgroundTransparency = 0.72,
+        BorderSizePixel = 0,
+        ZIndex = 5,
+        Parent = holder,
+    })
+    if text then
+        Create("TextLabel", {
+            Text = string.upper(tostring(text)),
+            Font = Theme.FontBold,
+            TextSize = 10,
+            TextColor3 = Theme.White,
+            TextTransparency = 0.2,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(4, 0),
+            Size = UDim2.new(1, -8, 0, 16),
+            ZIndex = 6,
+            Parent = holder,
+        })
+    end
+    return { Destroy = function() holder:Destroy() end }
+end
+
+function Tab:ColorPicker(opts)
+    opts = opts or {}
+    local colors = {
+        Color3.fromRGB(255, 105, 97), Color3.fromRGB(255, 180, 70),
+        Color3.fromRGB(255, 220, 90), Color3.fromRGB(104, 204, 76),
+        Color3.fromRGB(90, 210, 170), Color3.fromRGB(75, 190, 235),
+        Color3.fromRGB(75, 125, 235), Color3.fromRGB(150, 105, 220),
+        Color3.fromRGB(225, 115, 190), Color3.fromRGB(255, 255, 255),
+    }
+    local selected = typeof(opts.Default or opts.Color) == "Color3" and (opts.Default or opts.Color) or colors[6]
+    local expanded = false
+    local f = Element(self, 40)
+    NameLabel(f, opts.Name or "Cor")
+    local preview = Create("Frame", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -14, 0, 20),
+        Size = UDim2.fromOffset(34, 20),
+        BackgroundColor3 = selected,
+        BorderSizePixel = 0,
+        ZIndex = 7,
+        Parent = f,
+    })
+    Corner(preview, UDim.new(0, 6))
+    Stroke(preview, Theme.White, 0.45, 1)
+
+    local palette = Create("Frame", {
+        Position = UDim2.fromOffset(10, 42),
+        Size = UDim2.new(1, -20, 0, 42),
+        BackgroundTransparency = 1,
+        Visible = false,
+        ZIndex = 7,
+        Parent = f,
+    })
+    Create("UIGridLayout", {
+        CellSize = UDim2.fromOffset(24, 18),
+        CellPadding = UDim2.fromOffset(7, 4),
+        FillDirectionMaxCells = 5,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = palette,
+    })
+    local api = {}
+    local function setColor(color, silent)
+        if typeof(color) ~= "Color3" then return end
+        selected = color
+        preview.BackgroundColor3 = color
+        if not silent then Fire(opts.Callback, color) end
+    end
+    function api:Set(color, silent) setColor(color, silent) end
+    function api:Get() return selected end
+
+    for index, color in ipairs(colors) do
+        local swatch = Create("TextButton", {
+            Text = "", AutoButtonColor = false,
+            BackgroundColor3 = color, BorderSizePixel = 0,
+            LayoutOrder = index, ZIndex = 8, Parent = palette,
+        })
+        Corner(swatch, UDim.new(0, 5))
+        Stroke(swatch, Theme.White, 0.5, 1)
+        swatch.MouseButton1Click:Connect(function()
+            setColor(color)
+            expanded = false
+            palette.Visible = false
+            Tween(f, { Size = UDim2.new(1, 0, 0, 40) }, 0.2)
+        end)
+    end
+
+    local head = Create("TextButton", {
+        Text = "", BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 40), ZIndex = 9, Parent = f,
+    })
+    head.MouseButton1Click:Connect(function()
+        expanded = not expanded
+        palette.Visible = expanded
+        Tween(f, { Size = UDim2.new(1, 0, 0, expanded and 94 or 40) }, 0.22)
+    end)
+    return api
+end
+
+-- ═══════════════════════════════════════════════════════════
+--  Adaptador de API: Paradise também entende a forma clássica do Rayfield.
+--  Métodos e propriedades usam PascalCase, como nos exemplos do Rayfield.
+-- ═══════════════════════════════════════════════════════════
+local function ReadKey(config, primary, fallback)
+    local value = config[primary]
+    if value == nil and fallback then value = config[fallback] end
+    return value
+end
+
+local function ParseKey(value, defaultValue)
+    if typeof(value) == "EnumItem" then return value end
+    if type(value) == "string" then
+        local ok, parsed = pcall(function() return Enum.KeyCode[value] end)
+        if ok and parsed then return parsed end
+    end
+    return defaultValue or Enum.KeyCode.RightShift
+end
+
+function Paradise:CreateWindow(config)
+    config = config or {}
+    local key = ParseKey(ReadKey(config, "ToggleUIKeybind", "ToggleKey"), Enum.KeyCode.RightShift)
+    local window = Paradise.new({
+        Name = ReadKey(config, "Name", "name") or "Paradise UI",
+        Subtitle = ReadKey(config, "LoadingSubtitle", "Subtitle") or "uma interface tropical",
+        ToggleKey = key,
+        Size = config.Size,
+    })
+    window.Configuration = config
+    window.Flags = {}
+    return window
+end
+
+function Paradise:CreateTab(name, icon)
+    if type(name) == "table" then
+        icon = name.Icon or name.icon or icon
+        name = name.Name or name.name or "Tab"
+    end
+    -- A numeric Rayfield asset id is not an emoji; use a clean default icon instead.
+    if type(icon) == "number" then icon = nil end
+    return self:Tab(tostring(name or "Tab"), icon)
+end
+
+function Paradise:Unload()
+    return self:Destroy()
+end
+
+function Tab:CreateSection(name)
+    if type(name) == "table" then name = name.Name or name.name end
+    return self:Section(tostring(name or "Section"))
+end
+
+function Tab:CreateButton(opts)
+    opts = opts or {}
+    return self:Button({ Name = opts.Name or opts.name, Callback = opts.Callback or opts.callback })
+end
+
+function Tab:CreateToggle(opts)
+    opts = opts or {}
+    local flag = opts.Flag or opts.flag
+    local initial = opts.CurrentValue
+    if initial == nil then initial = opts.Default end
+    local control = self:Toggle({
+        Name = opts.Name or opts.name,
+        Default = initial,
+        Callback = opts.Callback or opts.callback,
+    })
+    if flag then self.Window.Flags[flag] = control:Get() end
+    return control
+end
+
+function Tab:CreateCheckbox(opts)
+    opts = opts or {}
+    local control = self:Checkbox({
+        Name = opts.Name or opts.name,
+        CurrentValue = opts.CurrentValue,
+        Default = opts.Default,
+        Callback = opts.Callback or opts.callback,
+    })
+    local flag = opts.Flag or opts.flag
+    if flag then self.Window.Flags[flag] = control:Get() end
+    return control
+end
+
+function Tab:CreateSlider(opts)
+    opts = opts or {}
+    local range = opts.Range or opts.range or { opts.Min or 0, opts.Max or 100 }
+    local initial = opts.CurrentValue
+    if initial == nil then initial = opts.Default end
+    local control = self:Slider({
+        Name = opts.Name or opts.name,
+        Min = range[1] or 0,
+        Max = range[2] or 100,
+        Increment = opts.Increment or opts.increment or 1,
+        Default = initial,
+        Suffix = opts.Suffix or opts.suffix or "",
+        Callback = opts.Callback or opts.callback,
+    })
+    local flag = opts.Flag or opts.flag
+    if flag then self.Window.Flags[flag] = control:Get() end
+    return control
+end
+
+function Tab:CreateDropdown(opts)
+    opts = opts or {}
+    local multiple = opts.MultipleOptions == true or opts.Multiple == true
+    local current = opts.CurrentOption
+    if current == nil then current = opts.Default end
+    if not multiple and type(current) == "table" then current = current[1] end
+    local callback = opts.Callback or opts.callback
+    local control = self:Dropdown({
+        Name = opts.Name or opts.name,
+        Options = opts.Options or opts.options or {},
+        Default = current,
+        Multiple = multiple,
+        Callback = function(value)
+            if callback then
+                if multiple then Fire(callback, value) else Fire(callback, value ~= nil and { value } or {}) end
+            end
+        end,
+    })
+    local flag = opts.Flag or opts.flag
+    if flag then self.Window.Flags[flag] = control:Get() end
+    return control
+end
+
+function Tab:CreateInput(opts)
+    opts = opts or {}
+    return self:TextBox({
+        Name = opts.Name or opts.name,
+        Default = opts.CurrentValue or opts.Default or "",
+        Placeholder = opts.PlaceholderText or opts.Placeholder or "Digite aqui...",
+        RemoveTextAfterFocusLost = opts.RemoveTextAfterFocusLost == true,
+        Callback = opts.Callback or opts.callback,
+    })
+end
+
+function Tab:CreateKeybind(opts)
+    opts = opts or {}
+    return self:Keybind({
+        Name = opts.Name or opts.name,
+        Default = ParseKey(opts.CurrentKeybind or opts.Default, Enum.KeyCode.F),
+        HoldToInteract = opts.HoldToInteract == true,
+        Callback = opts.Callback or opts.callback,
+        ChangedCallback = opts.ChangedCallback or opts.Changed,
+    })
+end
+
+function Tab:CreateLabel(text)
+    if type(text) == "table" then text = text.Text or text.Name or "Label" end
+    return self:Label(tostring(text or "Label"))
+end
+
+function Tab:CreateParagraph(opts)
+    return self:Paragraph(opts)
+end
+
+function Tab:CreateColorPicker(opts)
+    return self:ColorPicker(opts)
+end
+
+function Tab:CreateDivider(opts)
+    local text = type(opts) == "table" and (opts.Text or opts.Name) or opts
+    return self:Divider(text)
+end
+
+function Tab:CreateTextBox(opts)
+    return self:CreateInput(opts)
+end
+
+-- Friendly aliases for scripts that mix Paradise and Rayfield naming.
+Tab.CreateText = Tab.CreateLabel
+Tab.CreateToggleSwitch = Tab.CreateToggle
+Tab.CreateCheckBox = Tab.CreateCheckbox
+
+-- A biblioteca termina aqui; exemplos de uso ficam em arquivo separado.
+
+return Paradise
 return Paradise
