@@ -1882,9 +1882,10 @@ function Diagnostics.CheckEnvironment()
         player and ("Jogador: " .. player.Name) or "LocalPlayer não foi encontrado.")
     local hasPlayerGui = false
     if player then
-        hasPlayerGui = pcall(function()
+        local okPlayerGui, playerGui = pcall(function()
             return player:FindFirstChildOfClass("PlayerGui") or player:WaitForChild("PlayerGui", 2)
         end)
+        hasPlayerGui = okPlayerGui and playerGui ~= nil
     end
     local hasGuiFallback = type(gethui) == "function" or hasPlayerGui
     add("GUI parent fallback", hasGuiFallback,
