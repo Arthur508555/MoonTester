@@ -4,7 +4,7 @@
     Os callbacks abaixo apenas testam os controles.
 ]]
 
-local LIBRARY_URL = "https://raw.githubusercontent.com/Arthur508555/MoonTester/main/ParadiseUI.lua"
+local LIBRARY_URL = "https://raw.githubusercontent.com/Arthur508555/MoonTester/main/ParadiseUI_v3.lua"
 
 -- Separar download e compilação deixa o erro real visível.
 local okDownload, source = pcall(function()
