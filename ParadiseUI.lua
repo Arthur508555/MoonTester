@@ -1624,4 +1624,3 @@ Tab.CreateCheckBox = Tab.CreateCheckbox
 -- A biblioteca termina aqui; exemplos de uso ficam em arquivo separado.
 
 return Paradise
-return Paradise
