@@ -3,7 +3,7 @@
     A biblioteca fica separada deste script.
 ]]
 
-local LIBRARY_URL = "https://raw.githubusercontent.com/Arthur508555/MoonTester/main/ParadiseUI_v4.lua"
+local LIBRARY_URL = "https://raw.githubusercontent.com/Arthur508555/MoonTester/main/ParadiseUI_v5.lua"
 
 local okHttp, source = pcall(function()
     return game:HttpGet(LIBRARY_URL)
