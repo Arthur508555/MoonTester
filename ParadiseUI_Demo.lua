@@ -1,10 +1,37 @@
 --[[
     Paradise UI - exemplo genérico de uso
-    Carrega apenas a library e monta controles de demonstração.
-    Os callbacks são exemplos: não alteram o personagem nem o jogo.
+    Carrega a library e monta controles de demonstração.
+    Os callbacks abaixo apenas testam os controles.
 ]]
 
-local Paradise = loadstring(game:HttpGet("https://raw.githubusercontent.com/Arthur508555/MoonTester/main/ParadiseUI.lua"))()
+local LIBRARY_URL = "https://raw.githubusercontent.com/Arthur508555/MoonTester/main/ParadiseUI.lua"
+
+-- Separar download e compilação deixa o erro real visível.
+local okDownload, source = pcall(function()
+    return game:HttpGet(LIBRARY_URL)
+end)
+
+if not okDownload or type(source) ~= "string" or source == "" then
+    error("ParadiseUI: falha ao baixar a library. Verifique a conexão e o suporte a HttpGet do seu executor. Detalhe: " .. tostring(source))
+end
+
+if type(loadstring) ~= "function" then
+    error("ParadiseUI: este ambiente não disponibiliza loadstring. Use um executor que suporte compilar código Luau remoto.")
+end
+
+local chunk, compileError = loadstring(source)
+if type(chunk) ~= "function" then
+    error("ParadiseUI: erro ao compilar ParadiseUI.lua: " .. tostring(compileError))
+end
+
+local okLoad, Paradise = pcall(chunk)
+if not okLoad then
+    error("ParadiseUI: erro durante a inicialização da library: " .. tostring(Paradise))
+end
+
+if type(Paradise) ~= "table" then
+    error("ParadiseUI: a library não retornou a tabela Paradise.")
+end
 
 local Window = Paradise:CreateWindow({
     Name = "Paradise UI Test",
