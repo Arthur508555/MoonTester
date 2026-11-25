@@ -1868,10 +1868,10 @@ function Diagnostics.CheckEnvironment()
         "Criação de instâncias Roblox.")
     add("game:GetService", game ~= nil and type(game.GetService) == "function",
         "Acesso aos serviços.")
-    add("TweenService", pcall(function() return game:GetService("TweenService") end),
-        "Animações da interface.")
-    add("UserInputService", pcall(function() return game:GetService("UserInputService") end),
-        "Entrada de mouse/teclado.")
+    local hasTweenService = pcall(function() game:GetService("TweenService") end)
+    add("TweenService", hasTweenService, "Animações da interface.")
+    local hasInputService = pcall(function() game:GetService("UserInputService") end)
+    add("UserInputService", hasInputService, "Entrada de mouse/teclado.")
     add("loadstring", type(loadstring) == "function",
         "Necessário somente para carregar código remoto; não é exigido com require(ModuleScript).", true)
     add("gethui", type(gethui) == "function",
