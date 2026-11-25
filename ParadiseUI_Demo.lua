@@ -1,53 +1,61 @@
 --[[
-    Paradise UI - exemplo genérico de uso
-    Carrega a library e monta controles de demonstração.
-    Os callbacks abaixo apenas testam os controles.
+    Paradise UI v4 - demonstração simples com painel de diagnóstico.
+    A biblioteca fica separada deste script.
 ]]
 
-local LIBRARY_URL = "https://raw.githubusercontent.com/Arthur508555/MoonTester/main/ParadiseUI_v3.lua"
+local LIBRARY_URL = "https://raw.githubusercontent.com/Arthur508555/MoonTester/main/ParadiseUI_v4.lua"
 
--- Separar download e compilação deixa o erro real visível.
-local okDownload, source = pcall(function()
+local okHttp, source = pcall(function()
     return game:HttpGet(LIBRARY_URL)
 end)
-
-if not okDownload or type(source) ~= "string" or source == "" then
-    error("ParadiseUI: falha ao baixar a library. Verifique a conexão e o suporte a HttpGet do seu executor. Detalhe: " .. tostring(source))
+if not okHttp or type(source) ~= "string" or source == "" then
+    error("[ParadiseUI Demo] HTTP_GET_FAILED: " .. tostring(source))
 end
 
 if type(loadstring) ~= "function" then
-    error("ParadiseUI: este ambiente não disponibiliza loadstring. Use um executor que suporte compilar código Luau remoto.")
+    error("[ParadiseUI Demo] LOADSTRING_UNAVAILABLE: este ambiente não permite compilar código remoto. Em um projeto próprio, use a library como ModuleScript e require().")
 end
 
-local chunk, compileError = loadstring(source)
-if type(chunk) ~= "function" then
-    error("ParadiseUI: erro ao compilar ParadiseUI.lua: " .. tostring(compileError))
+local okCompile, chunk, compileError = pcall(loadstring, source)
+if not okCompile or type(chunk) ~= "function" then
+    error("[ParadiseUI Demo] COMPILE_FAILED: " .. tostring(okCompile and compileError or chunk))
 end
 
-local okLoad, Paradise = pcall(chunk)
-if not okLoad then
-    error("ParadiseUI: erro durante a inicialização da library: " .. tostring(Paradise))
+local okRun, Paradise = pcall(chunk)
+if not okRun then
+    error("[ParadiseUI Demo] LIBRARY_RUNTIME_FAILED: " .. tostring(Paradise))
+end
+if type(Paradise) ~= "table" or Paradise.__ParadiseLibrary ~= true then
+    error("[ParadiseUI Demo] INVALID_LIBRARY_RETURN: a versão carregada não é a Paradise UI v4.")
 end
 
-if type(Paradise) ~= "table" then
-    error("ParadiseUI: a library não retornou a tabela Paradise.")
-end
-
-local Window = Paradise:CreateWindow({
+local Window, windowError = Paradise:CreateWindow({
     Name = "Paradise UI Test",
     LoadingTitle = "Paradise UI",
-    LoadingSubtitle = "Rayfield API compatibility demo",
+    LoadingSubtitle = "componentes + diagnóstico",
     ToggleUIKeybind = "RightShift",
 })
+if not Window then
+    error("[ParadiseUI Demo] WINDOW_CREATE_FAILED: " .. tostring(windowError) .. "\n" .. Paradise.Diagnostics.Report())
+end
 
 local Main = Window:CreateTab("Principal", "🌴")
-Main:CreateSection("Componentes básicos")
+if not Main then
+    error("[ParadiseUI Demo] TAB_CREATE_FAILED:\n" .. Paradise.Diagnostics.Report())
+end
 
+local tabOk, tabIssues = Paradise.Diagnostics.CheckTab(Main)
+if not tabOk then
+    warn("[ParadiseUI Demo] TAB_VALIDATION_FAILED: " .. table.concat(tabIssues, " | "))
+end
+
+Main:CreateSection("Componentes básicos")
 local status = Main:CreateLabel("Status: aguardando teste")
+
 Main:CreateButton({
     Name = "Testar botão",
     Callback = function()
-        status:Set("Status: botão clicado")
+        if status and status.Set then status:Set("Status: botão clicado") end
         Paradise:Notify({
             Title = "Paradise UI",
             Content = "O botão está funcionando!",
@@ -59,17 +67,13 @@ Main:CreateButton({
 Main:CreateToggle({
     Name = "Toggle de demonstração",
     CurrentValue = false,
-    Callback = function(value)
-        print("Toggle:", value)
-    end,
+    Callback = function(value) print("Toggle:", value) end,
 })
 
 Main:CreateCheckbox({
     Name = "Checkbox de demonstração",
     CurrentValue = true,
-    Callback = function(value)
-        print("Checkbox:", value)
-    end,
+    Callback = function(value) print("Checkbox:", value) end,
 })
 
 Main:CreateSlider({
@@ -78,18 +82,14 @@ Main:CreateSlider({
     Increment = 5,
     CurrentValue = 35,
     Suffix = "%",
-    Callback = function(value)
-        print("Slider:", value)
-    end,
+    Callback = function(value) print("Slider:", value) end,
 })
 
 Main:CreateDropdown({
     Name = "Escolha uma opção",
     Options = {"Opção A", "Opção B", "Opção C"},
     CurrentOption = {"Opção A"},
-    Callback = function(option)
-        print("Dropdown:", option[1])
-    end,
+    Callback = function(option) print("Dropdown:", option[1]) end,
 })
 
 Main:CreateInput({
@@ -97,7 +97,7 @@ Main:CreateInput({
     PlaceholderText = "Digite algo...",
     RemoveTextAfterFocusLost = false,
     Callback = function(value)
-        status:Set("Texto recebido: " .. value)
+        if status and status.Set then status:Set("Texto recebido: " .. value) end
     end,
 })
 
@@ -115,24 +115,71 @@ Main:CreateKeybind({
 
 Main:CreateParagraph({
     Title = "Sobre este exemplo",
-    Content = "Esta janela demonstra os controles da Paradise UI com nomes de métodos compatíveis com a API clássica do Rayfield.",
+    Content = "Paradise UI v4: demonstração dos componentes e da compatibilidade com a API clássica do Rayfield.",
 })
 
 Main:CreateColorPicker({
     Name = "Cor de teste",
     Color = Color3.fromRGB(75, 190, 235),
-    Callback = function(color)
-        print("ColorPicker:", color)
-    end,
+    Callback = function(color) print("ColorPicker:", color) end,
 })
 
 Main:CreateDivider("Fim dos componentes")
+
+local DebugTab = Window:CreateTab("Diagnóstico", "🛠️")
+DebugTab:CreateSection("Verificações")
+local reportLabel = DebugTab:CreateParagraph({
+    Title = "Estado da biblioteca",
+    Content = "Use os botões para executar os diagnósticos.",
+})
+
+DebugTab:CreateButton({
+    Name = "Executar autodiagnóstico",
+    Callback = function()
+        local ok, results = Paradise.Diagnostics.SelfTest(Window, Main)
+        local lines = {}
+        for _, item in ipairs(results) do
+            table.insert(lines, (item.Passed and "[OK] " or "[ERRO] ") .. item.Name
+                .. (item.Details ~= "" and (": " .. item.Details) or ""))
+        end
+        if reportLabel and reportLabel.Set then reportLabel:Set(table.concat(lines, "\n")) end
+        print(Paradise.Diagnostics.Report())
+    end,
+})
+
+DebugTab:CreateButton({
+    Name = "Imprimir relatório completo",
+    Callback = function()
+        print(Paradise.Diagnostics.Report())
+        Paradise:Notify({
+            Title = "Diagnóstico",
+            Content = "Relatório enviado ao console.",
+            Duration = 3,
+        })
+    end,
+})
+
+DebugTab:CreateButton({
+    Name = "Verificar se a UI está ativa",
+    Callback = function()
+        local ok = Paradise.Diagnostics.CheckUsage()
+        Paradise:Notify({
+            Title = "Verificação",
+            Content = ok and "A interface está ativa." or "Veja o console para detalhes.",
+            Duration = 3,
+        })
+    end,
+})
 
 local Extra = Window:CreateTab("Extras", "🌊")
 Extra:CreateLabel("Arraste a barra inferior para mover a janela.")
 Extra:CreateButton({
     Name = "Fechar interface",
-    Callback = function()
-        Window:Unload()
-    end,
+    Callback = function() Window:Unload() end,
 })
+
+task.defer(function()
+    Paradise.Diagnostics.CheckUsage()
+    local ok, results = Paradise.Diagnostics.SelfTest(Window, Main)
+    print("[ParadiseUI Demo] Inicialização:", ok, #results, "verificações.")
+end)
